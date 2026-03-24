@@ -7,7 +7,7 @@
 
 const CONFIG = {
   BIN_ID:     '69c2d47caa77b81da916332c',
-  API_KEY:    '$2a$10$e1.gLu8GETT7vzSHCE9poeJH4svpc3B0sF056PQE6wWbxShF9dH6S',
+  API_KEY:    '$2a$10$pB9YcCLVAxoYIAxsvW6UV.paPg8VAdR972rAe4jBr8eTGzEvETQda',
   VENMO_USER: 'cakes2015',
 };
 
