@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NCAA Championship Box Pool</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-title-block">
+        <span class="header-eyebrow">🏀 2025 NCAA Men's Basketball</span>
+        <h1 class="header-title">Championship Box Pool</h1>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill">
+          <span class="stat-label">Claimed</span>
+          <span class="stat-value" id="claimed-count">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Remaining</span>
+          <span class="stat-value" id="remaining-count">100</span>
+        </div>
+        <div class="stat-pill last-updated-pill">
+          <span class="stat-label">Updated</span>
+          <span class="stat-value" id="last-updated">—</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- INSTRUCTIONS BANNER -->
+  <div class="instructions-banner">
+    <p>Pick a box → Enter your name → Pay via Venmo → Confirm to lock your spot! Numbers randomized after all 100 boxes are filled.</p>
+  </div>
+
+  <!-- ADMIN BAR -->
+  <div class="admin-bar">
+    <div class="admin-bar-inner">
+      <span class="admin-label">⚙ Admin Controls</span>
+      <div class="admin-actions">
+        <button id="btn-randomize" class="btn btn-accent" disabled>🎲 Randomize Numbers</button>
+        <button id="btn-export" class="btn btn-ghost">📥 Export CSV</button>
+        <button id="btn-reset" class="btn btn-danger">🗑 Reset Board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRID WRAPPER -->
+  <main class="grid-wrapper">
+    <!-- Team Labels -->
+    <div class="team-label team-label-top">
+      <span class="team-name" id="team-top-name">WINNING TEAM</span>
+      <span class="team-sublabel">Last digit of winning team's score →</span>
+    </div>
+    <div class="team-label team-label-left">
+      <span class="team-name" id="team-left-name">LOSING TEAM</span>
+      <span class="team-sublabel">Last digit of losing team's score ↓</span>
+    </div>
+
+    <!-- Outer scroll container -->
+    <div class="grid-scroll">
+      <div class="grid-container" id="grid-container">
+        <!-- Built by JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL OVERLAY -->
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+
+      <!-- Step 1: Enter Name -->
+      <div class="modal-step" id="step-name">
+        <div class="modal-box-badge" id="modal-box-number">BOX #00</div>
+        <h2 class="modal-title" id="modal-title">Claim This Box</h2>
+        <p class="modal-subtitle">Enter your name to reserve this box, then complete your Venmo payment.</p>
+        <div class="modal-field">
+          <label class="field-label" for="name-input">Your Name</label>
+          <input class="field-input" id="name-input" type="text" placeholder="e.g. John Smith" maxlength="40" autocomplete="off" />
+          <span class="field-hint" id="name-error" aria-live="polite"></span>
+        </div>
+        <button class="btn btn-accent btn-full" id="btn-go-pay">Continue to Payment →</button>
+      </div>
+
+      <!-- Step 2: Venmo Payment -->
+      <div class="modal-step hidden" id="step-pay">
+        <div class="modal-box-badge" id="modal-box-number-2">BOX #00</div>
+        <h2 class="modal-title">Complete Your Payment</h2>
+        <p class="modal-subtitle">Tap the button below to send your payment via Venmo. Come back here once it's done.</p>
+        <div class="venmo-card">
+          <div class="venmo-logo">Venmo</div>
+          <div class="venmo-details">
+            <span class="venmo-to">To: <strong>@cakes2015</strong></span>
+            <span class="venmo-note" id="venmo-note-display">Note: NCAA Box Pool – Box #00</span>
+          </div>
+        </div>
+        <a class="btn btn-venmo btn-full" id="venmo-link" href="#" target="_blank" rel="noopener noreferrer">
+          💸 Open Venmo &amp; Pay Now
+        </a>
+        <div class="payment-confirm-row">
+          <label class="confirm-checkbox-label">
+            <input type="checkbox" id="payment-confirmed" />
+            <span class="checkmark"></span>
+            I have completed my Venmo payment
+          </label>
+        </div>
+        <button class="btn btn-accent btn-full" id="btn-lock-box" disabled>🔒 Lock My Box</button>
+        <button class="btn btn-ghost btn-sm" id="btn-back-name">← Back</button>
+      </div>
+
+      <!-- Step 3: Confirmed -->
+      <div class="modal-step hidden" id="step-done">
+        <div class="claimed-animation">
+          <div class="claimed-icon">🏆</div>
+          <div class="claimed-burst"></div>
+        </div>
+        <h2 class="modal-title">Box Locked!</h2>
+        <p class="modal-subtitle" id="done-message">You've claimed Box #00. Good luck!</p>
+        <button class="btn btn-accent btn-full" id="btn-done-close">Close</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESET CONFIRM MODAL -->
+  <div class="modal-overlay" id="reset-overlay" aria-hidden="true">
+    <div class="modal modal-sm" role="dialog">
+      <h2 class="modal-title">Reset the Entire Board?</h2>
+      <p class="modal-subtitle">This will clear ALL claimed boxes and cannot be undone.</p>
+      <div class="modal-actions-row">
+        <button class="btn btn-danger" id="btn-reset-confirm">Yes, Reset</button>
+        <button class="btn btn-ghost" id="btn-reset-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>NCAA Championship Box Pool &nbsp;|&nbsp; $10/box via Venmo @cakes2015 &nbsp;|&nbsp; Numbers randomize when all 100 boxes are filled</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
