@@ -1,5 +1,5 @@
 /* ============================================================
-   NCAA CHAMPIONSHIP BOX POOL — styles.css
+   NCAA CHAMPIONSHIP BOX POOL — styles.css  (v2.0 — production fix)
    Theme: Dark stadium broadcast, electric amber/orange accents
    Font: Barlow Condensed (headers) + Barlow (body)
    ============================================================ */
@@ -18,7 +18,6 @@
   --accent:         #f5a623;
   --accent-dim:     rgba(245,166,35,0.18);
   --accent-glow:    rgba(245,166,35,0.4);
-  --accent-2:       #ff6b35;
 
   --claimed-bg:     #1a2e1a;
   --claimed-border: #2e7d32;
@@ -52,6 +51,75 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Safe area insets for iPhone notch */
+  padding-left:  env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ── LOADING OVERLAY ── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-base);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.loading-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-bright);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── ALERT BANNERS ── */
+.alert-banner {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  border-bottom: 1px solid transparent;
+}
+
+.alert-warning {
+  background: rgba(245,166,35,0.12);
+  border-bottom-color: rgba(245,166,35,0.3);
+  color: var(--accent);
+}
+
+.alert-warning code {
+  font-family: monospace;
+  background: rgba(245,166,35,0.15);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.alert-error {
+  background: var(--danger-dim);
+  border-bottom-color: rgba(229,57,53,0.3);
+  color: #ff6b6b;
 }
 
 /* ── HEADER ── */
@@ -63,6 +131,7 @@ body {
   top: 0;
   z-index: 100;
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .header-inner {
@@ -204,6 +273,12 @@ body {
   gap: 6px;
   text-decoration: none;
   line-height: 1;
+  /* Ensure tap target is large enough on mobile (WCAG 2.5.5) */
+  min-height: 44px;
+  /* Eliminate 300ms tap delay on mobile */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .btn:disabled {
@@ -216,7 +291,8 @@ body {
   background: var(--accent);
   color: #000;
 }
-.btn-accent:hover:not(:disabled) {
+.btn-accent:hover:not(:disabled),
+.btn-accent:focus-visible:not(:disabled) {
   background: #ffba3d;
   box-shadow: 0 0 20px var(--accent-glow);
   transform: translateY(-1px);
@@ -227,10 +303,10 @@ body {
   color: var(--text-secondary);
   border: 1px solid var(--border-bright);
 }
-.btn-ghost:hover:not(:disabled) {
+.btn-ghost:hover:not(:disabled),
+.btn-ghost:focus-visible:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--border-bright);
 }
 
 .btn-danger {
@@ -238,7 +314,8 @@ body {
   color: var(--danger);
   border: 1px solid rgba(229,57,53,0.3);
 }
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover:not(:disabled),
+.btn-danger:focus-visible:not(:disabled) {
   background: var(--danger);
   color: #fff;
 }
@@ -248,14 +325,15 @@ body {
   color: #fff;
   font-size: 15px;
 }
-.btn-venmo:hover {
+.btn-venmo:hover,
+.btn-venmo:focus-visible {
   background: #0099ff;
   box-shadow: 0 0 20px rgba(0,140,255,0.4);
   transform: translateY(-1px);
 }
 
 .btn-full { width: 100%; margin-top: 12px; padding: 13px; font-size: 15px; }
-.btn-sm { font-size: 12px; padding: 7px 14px; margin-top: 8px; }
+.btn-sm   { font-size: 12px; padding: 7px 14px; margin-top: 8px; min-height: 36px; }
 
 /* ── GRID WRAPPER ── */
 .grid-wrapper {
@@ -301,30 +379,36 @@ body {
   flex-direction: column-reverse;
 }
 
+/* ── GRID SCROLL ── */
 .grid-scroll {
   overflow-x: auto;
+  /* Native momentum scrolling on iOS — critical for smooth horizontal pan */
   -webkit-overflow-scrolling: touch;
+  /* Allow horizontal scroll gesture without interfering with tap events */
+  touch-action: pan-x pan-y;
   padding-bottom: 8px;
+  /* Scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-bright) transparent;
 }
+.grid-scroll::-webkit-scrollbar       { height: 5px; }
+.grid-scroll::-webkit-scrollbar-track { background: transparent; }
+.grid-scroll::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 99px; }
 
 /* ── THE GRID ── */
 .grid-container {
   display: grid;
-  /* 11 cols: corner + 10 header cols; 11 rows: header + 10 data rows */
   grid-template-columns: var(--header-cell) repeat(10, var(--cell-size));
-  grid-template-rows: var(--header-cell) repeat(10, var(--cell-size));
+  grid-template-rows:    var(--header-cell) repeat(10, var(--cell-size));
   gap: 3px;
   width: max-content;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto;
 }
 
-/* Corner cell */
 .grid-corner {
   background: transparent;
 }
 
-/* Header cells (column/row numbers) */
 .grid-header {
   background: var(--bg-card);
   border: 1px solid var(--border-bright);
@@ -336,7 +420,6 @@ body {
   font-size: 18px;
   font-weight: 800;
   color: var(--accent);
-  position: relative;
 }
 
 .grid-header.unset {
@@ -356,10 +439,19 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), transform 0.12s ease, box-shadow var(--transition);
+  transition: background var(--transition), border-color var(--transition),
+              transform 0.12s ease, box-shadow var(--transition);
   position: relative;
   overflow: hidden;
   user-select: none;
+
+  /*
+   * FIX (Bug 2): touch-action: manipulation removes the 300ms tap delay
+   * on iOS Safari and older Android browsers, which caused ghost taps
+   * after scrolling to fire on the wrong cell.
+   */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .grid-cell:hover:not(.claimed) {
@@ -368,6 +460,13 @@ body {
   transform: scale(1.06);
   z-index: 2;
   box-shadow: 0 0 14px var(--accent-glow);
+}
+
+/* Explicit focus style for keyboard nav */
+.grid-cell:focus-visible:not(.claimed) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  z-index: 2;
 }
 
 .box-number {
@@ -381,7 +480,7 @@ body {
   left: 5px;
 }
 
-/* CLAIMED STATE */
+/* ── CLAIMED STATE ── */
 .grid-cell.claimed {
   background: var(--claimed-bg);
   border-color: var(--claimed-border);
@@ -434,17 +533,23 @@ body {
   pointer-events: none;
 }
 
-/* ── MODAL ── */
+/* ── MODAL OVERLAY ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.72);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 500;
-  padding: 20px;
+  /* FIX (Bug 5): padding + overflow-y on the overlay so the modal
+   * can be scrolled on small/landscape phones.                     */
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Hidden by default */
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.22s ease;
@@ -455,23 +560,34 @@ body {
   pointer-events: all;
 }
 
+/* ── MODAL BOX ── */
 .modal {
   background: var(--bg-card);
   border: 1px solid var(--border-bright);
   border-radius: var(--radius-lg);
-  padding: 32px 28px 28px;
+  padding: 28px 24px 24px;
   width: 100%;
   max-width: 420px;
+  /* Let modal grow taller on small screens rather than clipping */
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px); /* dynamic viewport height — respects iOS browser chrome */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  /* Only animate on open, not on scroll */
   animation: modalIn 0.28s cubic-bezier(.34,1.56,.64,1) both;
+  /* Prevent the modal from closing when scrolling inside it */
+  overscroll-behavior: contain;
+  /* Ensure it sits above overlay on iOS */
+  flex-shrink: 0;
 }
 
 .modal-sm { max-width: 360px; }
 
 @keyframes modalIn {
   from { transform: scale(0.92) translateY(12px); opacity: 0; }
-  to   { transform: scale(1) translateY(0);        opacity: 1; }
+  to   { transform: scale(1)    translateY(0);    opacity: 1; }
 }
 
 .modal-close {
@@ -481,8 +597,8 @@ body {
   background: var(--bg-hover);
   border: 1px solid var(--border-bright);
   color: var(--text-secondary);
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   cursor: pointer;
   font-size: 13px;
@@ -491,12 +607,17 @@ body {
   justify-content: center;
   transition: all var(--transition);
   line-height: 1;
+  /* Minimum tap target */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.modal-close:hover {
+.modal-close:hover,
+.modal-close:focus-visible {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+  outline: none;
 }
 
 .modal-box-badge {
@@ -516,7 +637,7 @@ body {
 
 .modal-title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -527,12 +648,12 @@ body {
 .modal-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   line-height: 1.5;
 }
 
 /* Fields */
-.modal-field { margin-bottom: 16px; }
+.modal-field { margin-bottom: 14px; }
 
 .field-label {
   display: block;
@@ -549,12 +670,15 @@ body {
   background: var(--bg-surface);
   border: 1.5px solid var(--border-bright);
   border-radius: var(--radius);
-  padding: 11px 14px;
+  padding: 12px 14px;
   font-family: var(--font-body);
+  /* 16px minimum prevents iOS from auto-zooming on focus — critical mobile fix */
   font-size: 16px;
   color: var(--text-primary);
   outline: none;
   transition: border-color var(--transition), box-shadow var(--transition);
+  /* Prevent tap delay */
+  touch-action: manipulation;
 }
 
 .field-input:focus {
@@ -568,7 +692,7 @@ body {
   display: block;
   font-size: 12px;
   color: var(--danger);
-  margin-top: 4px;
+  margin-top: 5px;
   min-height: 16px;
 }
 
@@ -596,7 +720,7 @@ body {
 .venmo-details {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .venmo-to {
@@ -623,14 +747,16 @@ body {
   font-size: 14px;
   color: var(--text-secondary);
   user-select: none;
+  touch-action: manipulation;
 }
 
 .confirm-checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   accent-color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 
 .confirm-checkbox-label:has(input:checked) {
@@ -641,7 +767,6 @@ body {
 .claimed-animation {
   text-align: center;
   margin-bottom: 16px;
-  position: relative;
 }
 
 .claimed-icon {
@@ -655,12 +780,12 @@ body {
   to   { transform: scale(1) rotate(0deg);   opacity: 1; }
 }
 
+/* Reset modal actions */
 .modal-actions-row {
   display: flex;
   gap: 10px;
   margin-top: 20px;
 }
-
 .modal-actions-row .btn { flex: 1; }
 
 .hidden { display: none !important; }
@@ -679,28 +804,43 @@ body {
 /* ── RESPONSIVE ── */
 @media (max-width: 700px) {
   :root {
-    --cell-size: 52px;
+    --cell-size:   52px;
     --header-cell: 36px;
   }
 
-  .header-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .last-updated-pill { display: none; }
-  .admin-bar-inner { flex-direction: column; align-items: flex-start; }
-  .team-label-left { display: none; }
-  .team-label-top { margin-left: calc(var(--header-cell) + 3px); }
-  .grid-wrapper { padding: 0 12px 40px; }
-  .modal { padding: 24px 18px 22px; }
+  .header-inner        { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .last-updated-pill   { display: none; }
+  .admin-bar-inner     { flex-direction: column; align-items: flex-start; }
+  .team-label-left     { display: none; }
+  .team-label-top      { margin-left: calc(var(--header-cell) + 3px); }
+  .grid-wrapper        { padding: 0 10px 40px; }
 
-  .grid-header { font-size: 15px; }
-  .box-number { font-size: 9px; }
+  .modal               { padding: 20px 16px 20px; }
+  .modal-title         { font-size: 22px; }
+
+  .grid-header         { font-size: 15px; }
+  .box-number          { font-size: 9px; }
   .grid-cell.claimed .owner-name { font-size: 10px; }
 }
 
 @media (max-width: 420px) {
   :root {
-    --cell-size: 44px;
+    --cell-size:   44px;
     --header-cell: 30px;
   }
-  .grid-header { font-size: 13px; }
+  .grid-header   { font-size: 13px; }
   .grid-cell.claimed .owner-name { font-size: 9px; }
+  .instructions-banner p { font-size: 12px; }
+}
+
+/* Landscape + short viewport — ensure modal is still scrollable */
+@media (max-height: 600px) {
+  .modal {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px 16px 14px;
+  }
+  .modal-title    { font-size: 20px; }
+  .modal-subtitle { font-size: 13px; margin-bottom: 12px; }
+  .claimed-icon   { font-size: 40px; }
 }
