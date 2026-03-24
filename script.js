@@ -15,7 +15,7 @@ const CONFIG = {
 
 const TOTAL_BOXES   = 100;
 const API_BASE      = 'https://api.jsonbin.io/v3/b';
-const POLL_INTERVAL = 15000;
+const POLL_INTERVAL = 60000; // 60s — keeps 50 users well inside JSONBin free tier
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 
@@ -129,6 +129,7 @@ const btnBackName    = document.getElementById('btn-back-name');
 const btnDoneClose   = document.getElementById('btn-done-close');
 const doneMessage    = document.getElementById('done-message');
 const btnRandomize   = document.getElementById('btn-randomize');
+const btnRefresh     = document.getElementById('btn-refresh');
 const btnExport      = document.getElementById('btn-export');
 const btnReset       = document.getElementById('btn-reset');
 const btnResetConf   = document.getElementById('btn-reset-confirm');
@@ -184,6 +185,21 @@ function startPolling() {
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
+
+// Snap-refresh when user switches back to this tab — primary way to see
+// others' claims without waiting for the next 60s poll cycle.
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (modalOverlay.classList.contains('active')) return;
+  const remote = await fetchState();
+  if (!remote) return;
+  const fresh = sanitizeState(remote);
+  if (JSON.stringify(fresh) !== JSON.stringify(state)) {
+    state = fresh;
+    saveToLocalStorage();
+    buildGrid();
+  }
+});
 
 // ── GRID BUILDER ───────────────────────────────────────────────────────────
 
@@ -450,6 +466,20 @@ async function randomizeNumbers() {
 }
 
 btnRandomize.addEventListener('click', randomizeNumbers);
+
+// Manual refresh — lets any user pull latest state on demand
+btnRefresh.addEventListener('click', async () => {
+  btnRefresh.disabled = true;
+  btnRefresh.textContent = '⏳ Refreshing…';
+  const remote = await fetchState();
+  if (remote) {
+    state = sanitizeState(remote);
+    saveToLocalStorage();
+    buildGrid();
+  }
+  btnRefresh.textContent = '🔄 Refresh Board';
+  btnRefresh.disabled = false;
+});
 
 // ── EXPORT CSV ─────────────────────────────────────────────────────────────
 
