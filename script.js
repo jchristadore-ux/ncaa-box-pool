@@ -23,10 +23,10 @@
 
 const CONFIG = {
   // Your JSONBin.io Bin ID (from the bin URL: /b/YOUR_BIN_ID)
-  BIN_ID:  'PASTE_YOUR_BIN_ID_HERE',
+  BIN_ID:  '69c2d47caa77b81da916332c',
 
   // Your JSONBin.io API key (from Account → API Keys)
-  API_KEY: 'PASTE_YOUR_API_KEY_HERE',
+  API_KEY: '$2a$10$e1.gLu8GETT7vzSHCE9poeJH4svpc3B0sF056PQE6wWbxShF9dH6S',
 
   // Venmo username for payments
   VENMO_USER: 'cakes2015',
@@ -216,8 +216,8 @@ async function init() {
 }
 
 function isConfigured() {
-  return CONFIG.BIN_ID  !== 'PASTE_YOUR_BIN_ID_HERE'
-      && CONFIG.API_KEY !== 'PASTE_YOUR_API_KEY_HERE'
+  return CONFIG.BIN_ID  !== '69c2d47caa77b81da916332c'
+      && CONFIG.API_KEY !== '$2a$10$e1.gLu8GETT7vzSHCE9poeJH4svpc3B0sF056PQE6wWbxShF9dH6S'
       && CONFIG.BIN_ID.length > 10
       && CONFIG.API_KEY.length > 10;
 }
