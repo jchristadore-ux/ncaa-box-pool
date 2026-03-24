@@ -220,7 +220,7 @@ function isConfigured() {
       && typeof CONFIG.API_KEY === 'string' && CONFIG.API_KEY.length > 10
       && !CONFIG.BIN_ID.includes('PASTE')
       && !CONFIG.API_KEY.includes('PASTE');
-}
+
 }
 
 // ── POLLING ────────────────────────────────────────────────────────────────
