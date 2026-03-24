@@ -216,10 +216,11 @@ async function init() {
 }
 
 function isConfigured() {
-  return CONFIG.BIN_ID  !== '69c2d47caa77b81da916332c'
-      && CONFIG.API_KEY !== '$2a$10$e1.gLu8GETT7vzSHCE9poeJH4svpc3B0sF056PQE6wWbxShF9dH6S'
-      && CONFIG.BIN_ID.length > 10
-      && CONFIG.API_KEY.length > 10;
+  return typeof CONFIG.BIN_ID  === 'string' && CONFIG.BIN_ID.length  > 10
+      && typeof CONFIG.API_KEY === 'string' && CONFIG.API_KEY.length > 10
+      && !CONFIG.BIN_ID.includes('PASTE')
+      && !CONFIG.API_KEY.includes('PASTE');
+}
 }
 
 // ── POLLING ────────────────────────────────────────────────────────────────
