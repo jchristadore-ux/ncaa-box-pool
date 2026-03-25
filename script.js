@@ -353,9 +353,9 @@ btnGoPay.addEventListener('click', () => {
   }
   nameError.textContent = '';
 
-  const note = encodeURIComponent(`NCAA Box Pool - Box ${activeBox}`);
+  const note = encodeURIComponent(`Johnny-April-2026-Box-${activeBox}`);
   venmoLink.href = `https://venmo.com/${CONFIG.VENMO_USER}?txn=pay&note=${note}`;
-  venmoNoteDisp.textContent = `Note: NCAA Box Pool – Box #${activeBox}`;
+  venmoNoteDisp.textContent = `Note: Johnny-April-2026-Box-${activeBox}`;
   showStep('pay');
 });
 
