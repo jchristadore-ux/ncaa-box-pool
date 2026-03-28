@@ -1,6 +1,12 @@
 /**
- * NCAA Championship Box Pool — script.js (v2.1 — syntax fix)
+ * NCAA Championship Box Pool — script.js (v2.2)
  * Shared state via JSONBin.io. Works on all devices simultaneously.
+ *
+ * v2.2 changes:
+ *  - Password gate on Randomize Numbers and Reset Board
+ *  - Randomize Numbers disabled until all 100 boxes are claimed
+ *  - Clear Numbers admin action (nullifies digits, preserves all boxes)
+ *  - Removed auto-randomize on last box claim (admin triggers manually)
  */
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -11,18 +17,21 @@ const CONFIG = {
   VENMO_USER: 'cakes2015',
 };
 
+const ADMIN_PASSWORD = 'Wellington2013!';
+
 // ── CONSTANTS ──────────────────────────────────────────────────────────────
 
 const TOTAL_BOXES   = 100;
 const API_BASE      = 'https://api.jsonbin.io/v3/b';
-const POLL_INTERVAL = 60000; // 60s — keeps 50 users well inside JSONBin free tier
+const POLL_INTERVAL = 60000; // 60s — keeps 50 users within JSONBin free tier
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 
-let state     = makeEmptyState();
-let activeBox = null;
-let isSaving  = false;
-let pollTimer = null;
+let state              = makeEmptyState();
+let activeBox          = null;   // box key being claimed in the claim modal
+let pendingAdminAction = null;   // which admin action is awaiting password
+let isSaving           = false;
+let pollTimer          = null;
 
 function makeEmptyState() {
   return { boxes: {}, colDigits: null, rowDigits: null, lastUpdated: null };
@@ -106,43 +115,48 @@ function saveToLocalStorage() {
 
 // ── DOM REFS ───────────────────────────────────────────────────────────────
 
-const gridEl         = document.getElementById('grid-container');
-const claimedCountEl = document.getElementById('claimed-count');
-const remainingEl    = document.getElementById('remaining-count');
-const lastUpdatedEl  = document.getElementById('last-updated');
-const modalOverlay   = document.getElementById('modal-overlay');
-const modalClose     = document.getElementById('modal-close');
-const resetOverlay   = document.getElementById('reset-overlay');
-const stepName       = document.getElementById('step-name');
-const stepPay        = document.getElementById('step-pay');
-const stepDone       = document.getElementById('step-done');
-const modalBoxNum    = document.getElementById('modal-box-number');
-const modalBoxNum2   = document.getElementById('modal-box-number-2');
-const nameInput      = document.getElementById('name-input');
-const nameError      = document.getElementById('name-error');
-const venmoLink      = document.getElementById('venmo-link');
-const venmoNoteDisp  = document.getElementById('venmo-note-display');
-const payConfirmed   = document.getElementById('payment-confirmed');
-const btnLockBox     = document.getElementById('btn-lock-box');
-const btnGoPay       = document.getElementById('btn-go-pay');
-const btnBackName    = document.getElementById('btn-back-name');
-const btnDoneClose   = document.getElementById('btn-done-close');
-const doneMessage    = document.getElementById('done-message');
-const btnRandomize   = document.getElementById('btn-randomize');
-const btnRefresh     = document.getElementById('btn-refresh');
-const btnExport      = document.getElementById('btn-export');
-const btnReset       = document.getElementById('btn-reset');
-const btnResetConf   = document.getElementById('btn-reset-confirm');
-const btnResetCancel = document.getElementById('btn-reset-cancel');
-const loadingOverlay = document.getElementById('loading-overlay');
-const loadingMsg     = document.getElementById('loading-message');
-const configWarning  = document.getElementById('config-warning');
-const networkWarning = document.getElementById('network-warning');
+const gridEl          = document.getElementById('grid-container');
+const claimedCountEl  = document.getElementById('claimed-count');
+const remainingEl     = document.getElementById('remaining-count');
+const lastUpdatedEl   = document.getElementById('last-updated');
+const modalOverlay    = document.getElementById('modal-overlay');
+const modalClose      = document.getElementById('modal-close');
+const resetOverlay    = document.getElementById('reset-overlay');
+const passwordOverlay = document.getElementById('password-overlay');
+const stepName        = document.getElementById('step-name');
+const stepPay         = document.getElementById('step-pay');
+const stepDone        = document.getElementById('step-done');
+const modalBoxNum     = document.getElementById('modal-box-number');
+const modalBoxNum2    = document.getElementById('modal-box-number-2');
+const nameInput       = document.getElementById('name-input');
+const nameError       = document.getElementById('name-error');
+const venmoLink       = document.getElementById('venmo-link');
+const venmoNoteDisp   = document.getElementById('venmo-note-display');
+const payConfirmed    = document.getElementById('payment-confirmed');
+const btnLockBox      = document.getElementById('btn-lock-box');
+const btnGoPay        = document.getElementById('btn-go-pay');
+const btnBackName     = document.getElementById('btn-back-name');
+const btnDoneClose    = document.getElementById('btn-done-close');
+const doneMessage     = document.getElementById('done-message');
+const btnRandomize    = document.getElementById('btn-randomize');
+const btnClearNums    = document.getElementById('btn-clear-nums');
+const btnRefresh      = document.getElementById('btn-refresh');
+const btnExport       = document.getElementById('btn-export');
+const btnReset        = document.getElementById('btn-reset');
+const btnResetConf    = document.getElementById('btn-reset-confirm');
+const btnResetCancel  = document.getElementById('btn-reset-cancel');
+const pwInput         = document.getElementById('pw-input');
+const pwError         = document.getElementById('pw-error');
+const pwSubtitle      = document.getElementById('pw-subtitle');
+const pwSubmit        = document.getElementById('pw-submit');
+const pwCancel        = document.getElementById('pw-cancel');
+const loadingOverlay  = document.getElementById('loading-overlay');
+const loadingMsg      = document.getElementById('loading-message');
+const networkWarning  = document.getElementById('network-warning');
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  // Always show loading spinner first so user knows something is happening
   setLoadingOverlay(true, 'Loading board…');
 
   const remote = await fetchState();
@@ -151,7 +165,6 @@ async function init() {
     state = sanitizeState(remote);
     saveToLocalStorage();
   } else {
-    // API failed — fall back to local cache so page isn't blank
     loadFromLocalStorage();
     if (networkWarning) {
       networkWarning.style.display = 'block';
@@ -169,8 +182,11 @@ async function init() {
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(async () => {
-    if (modalOverlay.classList.contains('active')) return;
-    if (resetOverlay.classList.contains('active')) return;
+    // Pause polling while any modal is open to avoid jarring mid-flow rebuilds
+    if (modalOverlay.classList.contains('active'))    return;
+    if (resetOverlay.classList.contains('active'))    return;
+    if (passwordOverlay.classList.contains('active')) return;
+
     const remote = await fetchState();
     if (!remote) return;
     const fresh = sanitizeState(remote);
@@ -186,11 +202,11 @@ function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
-// Snap-refresh when user switches back to this tab — primary way to see
-// others' claims without waiting for the next 60s poll cycle.
+// Snap-refresh when user switches back to this tab
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState !== 'visible') return;
-  if (modalOverlay.classList.contains('active')) return;
+  if (document.visibilityState !== 'visible')           return;
+  if (modalOverlay.classList.contains('active'))         return;
+  if (passwordOverlay.classList.contains('active'))      return;
   const remote = await fetchState();
   if (!remote) return;
   const fresh = sanitizeState(remote);
@@ -218,14 +234,12 @@ function buildGrid() {
     gridEl.appendChild(hdr);
   }
 
-  // 10 rows of data
+  // 10 data rows
   for (let r = 0; r < 10; r++) {
-    // Row header (left column)
     const rowHdr = el('div', rowNums ? 'grid-header' : 'grid-header unset');
     rowHdr.textContent = rowNums ? rowNums[r] : '?';
     gridEl.appendChild(rowHdr);
 
-    // 10 cells per row
     for (let c = 0; c < 10; c++) {
       const num  = r * 10 + c + 1;
       const key  = boxKey(num);
@@ -292,16 +306,23 @@ function updateStats() {
   const claimed = Object.keys(state.boxes).length;
   claimedCountEl.textContent = claimed;
   remainingEl.textContent    = TOTAL_BOXES - claimed;
+
   if (state.lastUpdated) {
     try {
       const d = new Date(state.lastUpdated);
       lastUpdatedEl.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch (e) { lastUpdatedEl.textContent = '—'; }
   }
-  btnRandomize.disabled = false;
+
+  // Randomize is only enabled once every box is claimed
+  const boardFull = claimed === TOTAL_BOXES;
+  btnRandomize.disabled = !boardFull;
+  btnRandomize.title = boardFull
+    ? 'All boxes filled — ready to randomize'
+    : `${TOTAL_BOXES - claimed} box(es) remaining before numbers can be randomized`;
 }
 
-// ── MODAL ──────────────────────────────────────────────────────────────────
+// ── CLAIM MODAL ────────────────────────────────────────────────────────────
 
 function openModal(key) {
   if (state.boxes[key]) return;
@@ -337,7 +358,7 @@ function showStep(step) {
   stepDone.classList.toggle('hidden', step !== 'done');
 }
 
-// ── MODAL FLOW ─────────────────────────────────────────────────────────────
+// ── CLAIM MODAL FLOW ───────────────────────────────────────────────────────
 
 btnGoPay.addEventListener('click', () => {
   const name = nameInput.value.trim();
@@ -374,7 +395,7 @@ btnLockBox.addEventListener('click', async () => {
   btnLockBox.disabled    = true;
   btnLockBox.textContent = '⏳ Saving…';
 
-  // Re-fetch to catch race conditions
+  // Re-fetch to catch race conditions (two users on the same box simultaneously)
   let latestState = state;
   const remote = await fetchState();
   if (remote) latestState = sanitizeState(remote);
@@ -408,10 +429,8 @@ btnLockBox.addEventListener('click', async () => {
   showStep('done');
   doneMessage.textContent = `You've claimed Box #${activeBox}. Good luck, ${name}!`;
 
-  const claimed = Object.keys(state.boxes).length;
-  if (claimed === TOTAL_BOXES && !state.colDigits) {
-    setTimeout(randomizeNumbers, 800);
-  }
+  // NOTE: Auto-randomize removed. Admin must trigger Randomize Numbers manually
+  // once the board is full. This prevents accidental randomization.
 });
 
 function applyClaimedCell(key, name) {
@@ -443,7 +462,71 @@ function applyClaimedCell(key, name) {
 btnDoneClose.addEventListener('click', closeModal);
 modalClose.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── PASSWORD MODAL ─────────────────────────────────────────────────────────
+
+const ADMIN_ACTION_LABELS = {
+  randomize:    'Randomize Numbers',
+  clearNumbers: 'Clear Numbers',
+  reset:        'Reset Board',
+};
+
+function openPasswordModal(action) {
+  pendingAdminAction = action;
+  const label = ADMIN_ACTION_LABELS[action] || action;
+  pwSubtitle.textContent = `Enter the admin password to run: ${label}`;
+  pwInput.value       = '';
+  pwError.textContent = '';
+  passwordOverlay.classList.add('active');
+  passwordOverlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => pwInput.focus(), 120);
+}
+
+function closePasswordModal() {
+  passwordOverlay.classList.remove('active');
+  passwordOverlay.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  pendingAdminAction = null;
+  pwInput.value       = '';
+  pwError.textContent = '';
+}
+
+async function handlePasswordSubmit() {
+  if (pwInput.value !== ADMIN_PASSWORD) {
+    pwError.textContent = 'Incorrect password.';
+    pwInput.select();
+    return;
+  }
+
+  const action = pendingAdminAction;
+  closePasswordModal();
+
+  if (action === 'randomize') {
+    await randomizeNumbers();
+  } else if (action === 'clearNumbers') {
+    await clearNumbers();
+  } else if (action === 'reset') {
+    // Password verified — now show the reset confirmation modal
+    resetOverlay.classList.add('active');
+    resetOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+pwSubmit.addEventListener('click', handlePasswordSubmit);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') handlePasswordSubmit(); });
+pwCancel.addEventListener('click', closePasswordModal);
+passwordOverlay.addEventListener('click', e => { if (e.target === passwordOverlay) closePasswordModal(); });
+
+// ── ESCAPE KEY — closes whichever modal is open ────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (passwordOverlay.classList.contains('active')) { closePasswordModal(); return; }
+  if (resetOverlay.classList.contains('active'))    { closeResetModal();    return; }
+  closeModal();
+});
 
 // ── RANDOMIZE ──────────────────────────────────────────────────────────────
 
@@ -465,11 +548,37 @@ async function randomizeNumbers() {
   buildGrid();
 }
 
-btnRandomize.addEventListener('click', randomizeNumbers);
+// Randomize button: check board is full first, then gate with password
+btnRandomize.addEventListener('click', () => {
+  const claimed = Object.keys(state.boxes).length;
+  if (claimed < TOTAL_BOXES) {
+    alert(`You cannot randomize numbers until all boxes are selected.\n${TOTAL_BOXES - claimed} box(es) still remaining.`);
+    return;
+  }
+  openPasswordModal('randomize');
+});
 
-// Manual refresh — lets any user pull latest state on demand
+// ── CLEAR NUMBERS ──────────────────────────────────────────────────────────
+// Removes the randomized digits from top/side headers WITHOUT touching any
+// claimed boxes. Used to undo an accidental premature randomization.
+
+async function clearNumbers() {
+  state.colDigits   = null;
+  state.rowDigits   = null;
+  state.lastUpdated = new Date().toISOString();
+  await persistState(state);
+  saveToLocalStorage();
+  buildGrid();
+}
+
+btnClearNums.addEventListener('click', () => {
+  openPasswordModal('clearNumbers');
+});
+
+// ── REFRESH ────────────────────────────────────────────────────────────────
+
 btnRefresh.addEventListener('click', async () => {
-  btnRefresh.disabled = true;
+  btnRefresh.disabled    = true;
   btnRefresh.textContent = '⏳ Refreshing…';
   const remote = await fetchState();
   if (remote) {
@@ -478,7 +587,7 @@ btnRefresh.addEventListener('click', async () => {
     buildGrid();
   }
   btnRefresh.textContent = '🔄 Refresh Board';
-  btnRefresh.disabled = false;
+  btnRefresh.disabled    = false;
 });
 
 // ── EXPORT CSV ─────────────────────────────────────────────────────────────
@@ -501,26 +610,25 @@ btnExport.addEventListener('click', () => {
 
 // ── RESET ──────────────────────────────────────────────────────────────────
 
+// Reset button now requires password first, THEN shows the confirm modal
 btnReset.addEventListener('click', () => {
-  resetOverlay.classList.add('active');
-  resetOverlay.setAttribute('aria-hidden', 'false');
-  document.body.style.overflow = 'hidden';
+  openPasswordModal('reset');
 });
 
-btnResetCancel.addEventListener('click', () => {
+function closeResetModal() {
   resetOverlay.classList.remove('active');
   resetOverlay.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
-});
+}
+
+btnResetCancel.addEventListener('click', closeResetModal);
 
 btnResetConf.addEventListener('click', async () => {
   state = makeEmptyState();
   state.lastUpdated = new Date().toISOString();
   await persistState(state);
   saveToLocalStorage();
-  resetOverlay.classList.remove('active');
-  resetOverlay.setAttribute('aria-hidden', 'true');
-  document.body.style.overflow = '';
+  closeResetModal();
   buildGrid();
 });
 
