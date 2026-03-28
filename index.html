@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>NCAA Championship Box Pool</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ── LOADING OVERLAY ───────────────────────────────────────────────── -->
+  <div class="loading-overlay" id="loading-overlay" aria-hidden="true" aria-live="polite">
+    <div class="loading-spinner"></div>
+    <span id="loading-message">Loading board…</span>
+  </div>
+
+  <!-- ── CONFIG WARNING ────────────────────────────────────────────────── -->
+  <div class="alert-banner alert-warning" id="config-warning" style="display:none" role="alert">
+    ⚠️ <strong>Setup required:</strong> Open <code>script.js</code> and add your JSONBin BIN_ID and API_KEY.
+    Until then, the board only saves on <em>this device</em>.
+  </div>
+
+  <!-- ── NETWORK WARNING ───────────────────────────────────────────────── -->
+  <div class="alert-banner alert-error" id="network-warning" style="display:none" role="alert">
+    ⚠️ Could not reach the server — showing last cached state. Refresh to try again.
+  </div>
+
+  <!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-title-block">
+        <span class="header-eyebrow">🏀 2025 NCAA Men's Basketball</span>
+        <h1 class="header-title">Championship Box Pool</h1>
+      </div>
+      <div class="header-stats">
+        <div class="stat-pill">
+          <span class="stat-label">Claimed</span>
+          <span class="stat-value" id="claimed-count">0</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Remaining</span>
+          <span class="stat-value" id="remaining-count">100</span>
+        </div>
+        <div class="stat-pill last-updated-pill">
+          <span class="stat-label">Updated</span>
+          <span class="stat-value" id="last-updated">—</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── INSTRUCTIONS ───────────────────────────────────────────────────── -->
+  <div class="instructions-banner">
+    <p>Pick a box → Enter your name → Pay via Venmo → Confirm to lock your spot! Numbers randomize after all 100 boxes are filled.</p>
+  </div>
+
+  <!-- ── ADMIN BAR ──────────────────────────────────────────────────────── -->
+  <div class="admin-bar">
+    <div class="admin-bar-inner">
+      <button class="admin-gear-btn" id="btn-admin-gear" aria-label="Admin panel">
+        ⚙ <span class="admin-gear-label">Admin</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── ADMIN PANEL MODAL ──────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="admin-overlay" aria-hidden="true">
+    <div class="modal modal-sm admin-panel" role="dialog" aria-modal="true" aria-labelledby="admin-panel-title">
+      <button class="modal-close" id="admin-close" aria-label="Close admin panel">✕</button>
+      <h2 class="modal-title" id="admin-panel-title">Admin Panel</h2>
+      <div class="admin-panel-actions">
+        <button id="btn-randomize"  class="btn btn-accent  btn-full" disabled>🎲 Randomize Numbers</button>
+        <button id="btn-clear-nums" class="btn btn-ghost   btn-full">✕ Clear Numbers</button>
+        <button id="btn-refresh"    class="btn btn-ghost   btn-full">🔄 Refresh Board</button>
+        <button id="btn-export"     class="btn btn-ghost   btn-full">📥 Export CSV</button>
+        <button id="btn-reset"      class="btn btn-danger  btn-full">🗑 Reset Board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── GRID ───────────────────────────────────────────────────────────── -->
+  <main class="grid-wrapper">
+    <div class="team-label team-label-top">
+      <span class="team-name">WINNING TEAM</span>
+      <span class="team-sublabel">Last digit of winning team's score →</span>
+    </div>
+    <div class="team-label team-label-left" aria-hidden="true">
+      <span class="team-name">LOSING TEAM</span>
+      <span class="team-sublabel">Last digit of losing team's score ↓</span>
+    </div>
+
+    <div class="grid-scroll">
+      <div class="grid-container" id="grid-container" role="grid" aria-label="Box pool grid">
+        <!-- Built by script.js -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ── CLAIM MODAL ────────────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="Close modal">✕</button>
+
+      <!-- Step 1: Name -->
+      <div class="modal-step" id="step-name">
+        <div class="modal-box-badge" id="modal-box-number">BOX #00</div>
+        <h2 class="modal-title" id="modal-title">Claim This Box</h2>
+        <p class="modal-subtitle">Enter your name to reserve this box, then complete your Venmo payment.</p>
+        <div class="modal-field">
+          <label class="field-label" for="name-input">Your Name</label>
+          <input
+            class="field-input"
+            id="name-input"
+            type="text"
+            placeholder="e.g. John Smith"
+            maxlength="40"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="words"
+            spellcheck="false"
+          />
+          <span class="field-hint" id="name-error" role="alert" aria-live="polite"></span>
+        </div>
+        <button class="btn btn-accent btn-full" id="btn-go-pay">Continue to Payment →</button>
+      </div>
+
+      <!-- Step 2: Payment -->
+      <div class="modal-step hidden" id="step-pay">
+        <div class="modal-box-badge" id="modal-box-number-2">BOX #00</div>
+        <h2 class="modal-title">Complete Payment</h2>
+        <p class="modal-subtitle">Tap the button below to pay via Venmo, then come back and confirm.</p>
+        <div class="venmo-card">
+          <div class="venmo-logo">Venmo</div>
+          <div class="venmo-details">
+            <span class="venmo-to">To: <strong>@cakes2015</strong></span>
+            <span class="venmo-note" id="venmo-note-display">Note: Johnny-April-2026-Box-00</span>
+          </div>
+        </div>
+        <a class="btn btn-venmo btn-full" id="venmo-link" href="#" target="_blank" rel="noopener noreferrer">
+          💸 Open Venmo &amp; Pay Now
+        </a>
+        <div class="payment-confirm-row">
+          <label class="confirm-checkbox-label" for="payment-confirmed">
+            <input type="checkbox" id="payment-confirmed" />
+            <span class="checkmark"></span>
+            I have completed my Venmo payment
+          </label>
+        </div>
+        <button class="btn btn-accent btn-full" id="btn-lock-box" disabled>🔒 Lock My Box</button>
+        <button class="btn btn-ghost btn-sm" id="btn-back-name">← Back</button>
+      </div>
+
+      <!-- Step 3: Done -->
+      <div class="modal-step hidden" id="step-done">
+        <div class="claimed-animation">
+          <div class="claimed-icon">🏆</div>
+        </div>
+        <h2 class="modal-title">Box Locked!</h2>
+        <p class="modal-subtitle" id="done-message">You've claimed your box. Good luck!</p>
+        <button class="btn btn-accent btn-full" id="btn-done-close">Close</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── RESET CONFIRM MODAL ────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="reset-overlay" aria-hidden="true">
+    <div class="modal modal-sm" role="dialog" aria-modal="true">
+      <h2 class="modal-title">Reset Entire Board?</h2>
+      <p class="modal-subtitle">This clears ALL claimed boxes and cannot be undone.</p>
+      <div class="modal-actions-row">
+        <button class="btn btn-danger" id="btn-reset-confirm">Yes, Reset</button>
+        <button class="btn btn-ghost"  id="btn-reset-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PASSWORD MODAL ─────────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="password-overlay" aria-hidden="true">
+    <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="pw-title">
+      <h2 class="modal-title" id="pw-title">Admin Access</h2>
+      <p class="modal-subtitle" id="pw-subtitle">Enter the admin password to continue.</p>
+      <div class="modal-field">
+        <label class="field-label" for="pw-input">Password</label>
+        <input
+          class="field-input"
+          id="pw-input"
+          type="password"
+          placeholder="Enter password"
+          autocomplete="off"
+        />
+        <span class="field-hint" id="pw-error" role="alert" aria-live="polite"></span>
+      </div>
+      <div class="modal-actions-row">
+        <button class="btn btn-accent" id="pw-submit">Confirm</button>
+        <button class="btn btn-ghost"  id="pw-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>NCAA Championship Box Pool &nbsp;|&nbsp; $30/box via Venmo @cakes2015 &nbsp;|&nbsp; Numbers randomize when all 100 boxes are filled</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
