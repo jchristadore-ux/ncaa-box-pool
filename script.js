@@ -122,6 +122,9 @@ const lastUpdatedEl   = document.getElementById('last-updated');
 const modalOverlay    = document.getElementById('modal-overlay');
 const modalClose      = document.getElementById('modal-close');
 const resetOverlay    = document.getElementById('reset-overlay');
+const adminOverlay    = document.getElementById('admin-overlay');
+const adminClose      = document.getElementById('admin-close');
+const btnAdminGear    = document.getElementById('btn-admin-gear');
 const passwordOverlay = document.getElementById('password-overlay');
 const stepName        = document.getElementById('step-name');
 const stepPay         = document.getElementById('step-pay');
@@ -186,6 +189,7 @@ function startPolling() {
     if (modalOverlay.classList.contains('active'))    return;
     if (resetOverlay.classList.contains('active'))    return;
     if (passwordOverlay.classList.contains('active')) return;
+    if (adminOverlay.classList.contains('active'))    return;
 
     const remote = await fetchState();
     if (!remote) return;
@@ -207,6 +211,7 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible')           return;
   if (modalOverlay.classList.contains('active'))         return;
   if (passwordOverlay.classList.contains('active'))      return;
+  if (adminOverlay.classList.contains('active'))         return;
   const remote = await fetchState();
   if (!remote) return;
   const fresh = sanitizeState(remote);
@@ -463,9 +468,32 @@ btnDoneClose.addEventListener('click', closeModal);
 modalClose.addEventListener('click', closeModal);
 modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
 
+// ── ADMIN GEAR — opens password modal, then admin panel ───────────────────
+
+function openAdminPanel() {
+  adminOverlay.classList.add('active');
+  adminOverlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAdminPanel() {
+  adminOverlay.classList.remove('active');
+  adminOverlay.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+// Gear click → password gate → admin panel
+btnAdminGear.addEventListener('click', () => {
+  openPasswordModal('adminPanel');
+});
+
+adminClose.addEventListener('click', closeAdminPanel);
+adminOverlay.addEventListener('click', e => { if (e.target === adminOverlay) closeAdminPanel(); });
+
 // ── PASSWORD MODAL ─────────────────────────────────────────────────────────
 
 const ADMIN_ACTION_LABELS = {
+  adminPanel:   'Admin Panel',
   randomize:    'Randomize Numbers',
   clearNumbers: 'Clear Numbers',
   reset:        'Reset Board',
@@ -473,8 +501,13 @@ const ADMIN_ACTION_LABELS = {
 
 function openPasswordModal(action) {
   pendingAdminAction = action;
-  const label = ADMIN_ACTION_LABELS[action] || action;
-  pwSubtitle.textContent = `Enter the admin password to run: ${label}`;
+  // For the gear entry point, show a clean generic prompt
+  if (action === 'adminPanel') {
+    pwSubtitle.textContent = 'Enter the admin password to access the panel.';
+  } else {
+    const label = ADMIN_ACTION_LABELS[action] || action;
+    pwSubtitle.textContent = `Enter the admin password to run: ${label}`;
+  }
   pwInput.value       = '';
   pwError.textContent = '';
   passwordOverlay.classList.add('active');
@@ -502,7 +535,9 @@ async function handlePasswordSubmit() {
   const action = pendingAdminAction;
   closePasswordModal();
 
-  if (action === 'randomize') {
+  if (action === 'adminPanel') {
+    openAdminPanel();
+  } else if (action === 'randomize') {
     await randomizeNumbers();
   } else if (action === 'clearNumbers') {
     await clearNumbers();
@@ -525,6 +560,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (passwordOverlay.classList.contains('active')) { closePasswordModal(); return; }
   if (resetOverlay.classList.contains('active'))    { closeResetModal();    return; }
+  if (adminOverlay.classList.contains('active'))    { closeAdminPanel();    return; }
   closeModal();
 });
 
@@ -548,14 +584,15 @@ async function randomizeNumbers() {
   buildGrid();
 }
 
-// Randomize button: check board is full first, then gate with password
-btnRandomize.addEventListener('click', () => {
+// Randomize: board-full check, then run directly (panel is already password-protected)
+btnRandomize.addEventListener('click', async () => {
   const claimed = Object.keys(state.boxes).length;
   if (claimed < TOTAL_BOXES) {
     alert(`You cannot randomize numbers until all boxes are selected.\n${TOTAL_BOXES - claimed} box(es) still remaining.`);
     return;
   }
-  openPasswordModal('randomize');
+  closeAdminPanel();
+  await randomizeNumbers();
 });
 
 // ── CLEAR NUMBERS ──────────────────────────────────────────────────────────
@@ -571,14 +608,17 @@ async function clearNumbers() {
   buildGrid();
 }
 
-btnClearNums.addEventListener('click', () => {
-  openPasswordModal('clearNumbers');
+// Clear Numbers: run directly (panel is already password-protected)
+btnClearNums.addEventListener('click', async () => {
+  closeAdminPanel();
+  await clearNumbers();
 });
 
 // ── REFRESH ────────────────────────────────────────────────────────────────
 
+// Refresh: close panel then pull latest
 btnRefresh.addEventListener('click', async () => {
-  btnRefresh.disabled    = true;
+  closeAdminPanel();
   btnRefresh.textContent = '⏳ Refreshing…';
   const remote = await fetchState();
   if (remote) {
@@ -587,7 +627,6 @@ btnRefresh.addEventListener('click', async () => {
     buildGrid();
   }
   btnRefresh.textContent = '🔄 Refresh Board';
-  btnRefresh.disabled    = false;
 });
 
 // ── EXPORT CSV ─────────────────────────────────────────────────────────────
@@ -610,9 +649,12 @@ btnExport.addEventListener('click', () => {
 
 // ── RESET ──────────────────────────────────────────────────────────────────
 
-// Reset button now requires password first, THEN shows the confirm modal
+// Reset: close panel then show confirm modal (already authenticated)
 btnReset.addEventListener('click', () => {
-  openPasswordModal('reset');
+  closeAdminPanel();
+  resetOverlay.classList.add('active');
+  resetOverlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
 });
 
 function closeResetModal() {
