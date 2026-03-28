@@ -249,10 +249,49 @@ body {
   flex-shrink: 0;
 }
 
-.admin-actions {
+/* Gear button — replaces the old exposed admin buttons */
+.admin-gear-btn {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-gear-btn:hover,
+.admin-gear-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: var(--border-bright);
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.admin-gear-label {
+  font-size: 13px;
+}
+
+/* Admin panel modal content */
+.admin-panel-actions {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.admin-panel .btn-full {
+  margin-top: 0;
 }
 
 /* ── BUTTONS ── */
